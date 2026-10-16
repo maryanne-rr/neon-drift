@@ -9,7 +9,7 @@
  */
 
 import * as THREE from 'three';
-import { clamp, createTrack, crossedLine, defaultControlPoints, driveCar, formatTime, racePositions } from './track.js';
+import { clamp, createTrack, defaultControlPoints, driveCar, formatTime, lapAfterStep, racePositions } from './track.js';
 import { buildWorld } from './world.js';
 import { createKart, createRivalKart } from './kart.js';
 import * as SN from './startng.js';
@@ -189,6 +189,7 @@ function startRace() {
     racer.lane = offset;
     racer.lateral = 0;
     racer.speed = 0;
+    racer.lap = 0; // otherwise "race again" starts on the old race's laps
   }
 
   raceTime = 0;
@@ -255,25 +256,35 @@ function resolveBump(a, b) {
   return true;
 }
 
+/**
+ * Moves one car on by a step, counting the lap if it crossed the line.
+ * @param {object} racer the car being updated
+ * @param {object} next  the car state driveCar returned
+ * @param {Function} onLap called only when the car completed a lap
+ */
+function applyStep(racer, next, onLap) {
+  const laps = lapAfterStep(racer, racer.d, next.d);
+  const completedLap = laps > racer.lap;
+  racer.d = next.d;
+  racer.offset = next.offset;
+  racer.speed = next.speed;
+  racer.lateral = next.lateral;
+  racer.lap = laps;
+  if (completedLap) onLap?.();
+}
+
 function updateField(dt, elapsed) {
+  const racing = phase === 'racing';
+
   // --- player ---
-  const driving = phase === 'racing' ? (autopilot ? driveRival(player, dt, elapsed) : drivePlayer(dt)) : { car: player, offTrack: false };
-  const playerResult = driving;
-  if (phase === 'racing') {
-    if (crossedLine(player.d, playerResult.car.d)) onPlayerLap();
-    player.d = playerResult.car.d;
-    player.offset = playerResult.car.offset;
-    player.speed = playerResult.car.speed;
-    player.lateral = playerResult.car.lateral;
+  if (racing) {
+    const result = autopilot ? driveRival(player, dt, elapsed) : drivePlayer(dt);
+    applyStep(player, result.car, onPlayerLap);
   }
 
   // --- rivals ---
-  for (const rival of rivals) {
-    const result = phase === 'racing' ? driveRival(rival, dt, elapsed) : { car: rival };
-    rival.d = result.car.d;
-    rival.offset = result.car.offset;
-    rival.speed = result.car.speed;
-    rival.lateral = result.car.lateral;
+  if (racing) {
+    for (const rival of rivals) applyStep(rival, driveRival(rival, dt, elapsed).car);
   }
 
   // --- contact between any two cars ---
@@ -292,16 +303,13 @@ function onPlayerLap() {
     const stored = Number(localStorage.getItem(BEST_KEY));
     if (!(stored > 0) || lapTime < stored) localStorage.setItem(BEST_KEY, String(lapTime));
   }
-  if (player.lap + 1 >= LAPS) {
-    finishRace();
-  } else {
-    player.lap += 1;
-  }
+  // The lap counter now counts for the player and the computer karts alike,
+  // which is what makes the finishing position mean anything.
+  if (player.lap >= LAPS) finishRace();
 }
 
 async function finishRace() {
   phase = 'finished';
-  const finishedLap = Math.min(player.lap + 1, LAPS);
 
   ui.end.hidden = false;
   ui.endPlace.textContent = ordinal(placeOf(player));
@@ -324,7 +332,6 @@ async function finishRace() {
   }
 
   await refreshBoard();
-  void finishedLap;
 }
 
 /** 1st, 2nd, 3rd, 4th. */

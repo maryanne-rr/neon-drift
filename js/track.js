@@ -52,6 +52,17 @@ export function crossedLine(previousD, nextD) {
   return nextD < previousD;
 }
 
+/**
+ * A car's lap count after one step.
+ *
+ * Every car goes through this, including the computer karts. Ranking compares
+ * `lap * length + d`, so a car whose lap counter is not being updated gets
+ * ranked on one lap's worth of distance and never appears to be behind.
+ */
+export function lapAfterStep(racer, previousD, nextD) {
+  return racer.lap + (crossedLine(previousD, nextD) ? 1 : 0);
+}
+
 export const DEFAULTS = {
   halfWidth: 9, // metres from the middle to the white line
   runoff: 7, // metres of gravel before the barrier

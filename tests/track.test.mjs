@@ -16,6 +16,7 @@ import {
   driveCar,
   formatTime,
   forwardGap,
+  lapAfterStep,
   progress,
   racePositions,
   wrap,
@@ -199,6 +200,31 @@ test('the leader is the car that has covered the most ground', () => {
   assert.equal(places['player'], 2);
   assert.equal(places['ai-2'], 3);
   assert.ok(progress(field[1], track) > progress(field[0], track));
+});
+
+test('every car counts its laps the same way', () => {
+  // A car on the grid drives away without gaining a lap...
+  const racer = { lap: 0 };
+  assert.equal(lapAfterStep(racer, 20, 26), 0);
+  assert.equal(lapAfterStep(racer, 300, 306), 0);
+  // ...and gains exactly one per circuit. This is what makes the finishing
+  // position fair: the player and the computer karts share one counter.
+  assert.equal(lapAfterStep({ lap: 0 }, track.length - 2, 1), 1);
+  assert.equal(lapAfterStep({ lap: 1 }, track.length - 2, 1), 2);
+  assert.equal(lapAfterStep({ lap: 2 }, track.length - 2, 1), 3);
+});
+
+test('a car that has run further round the lap is placed ahead', () => {
+  // The bug this catches: rivals used to keep their lap count at zero, so they
+  // only ever had one lap's worth of distance behind them and a player who had
+  // completed a lap was always shown as the winner.
+  const field = [
+    { id: 'player', lap: 2, d: 5 }, // 1265 m covered
+    { id: 'rival-same-lap-further-along', lap: 2, d: 400 }, // 1660 m covered
+    { id: 'rival-a-lap-down', lap: 1, d: 600 }, // 1230 m covered
+  ];
+  const order = racePositions(field, track).map((row) => row.racer.id);
+  assert.deepEqual(order, ['rival-same-lap-further-along', 'player', 'rival-a-lap-down']);
 });
 
 test('times are formatted the way a race clock shows them', () => {
