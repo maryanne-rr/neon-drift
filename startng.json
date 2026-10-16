@@ -1,0 +1,7 @@
+{
+  "leaderboard": {
+    "stats": [
+      { "key": "bestlap", "label": "Best lap", "order": "lowest", "format": "time" }
+    ]
+  }
+}

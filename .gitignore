@@ -1,0 +1,5 @@
+# Local screenshots taken while testing, not part of the game.
+.shots/
+
+# Nothing in this repo needs a build, so no node_modules should ever be committed.
+node_modules/

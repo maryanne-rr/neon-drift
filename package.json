@@ -1,0 +1,11 @@
+{
+  "name": "neon-drift",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A three.js kart racer for start.ng",
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "start": "node ../serve.mjs . 4173"
+  }
+}
